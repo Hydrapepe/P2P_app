@@ -1,101 +1,88 @@
-﻿using System.Security.Authentication;
+﻿using System.Data.SQLite;
+using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using WebSocketSharp;
 using WebSocketSharp.Net;
 using WebSocketSharp.Server;
-using System.Data.SQLite;
-
-class MyServer : WebSocketBehavior
+namespace Signal;
+internal class MyServer : WebSocketBehavior
 {
-    private static List<MyServer> clients = new List<MyServer>();
-    private static Dictionary<string, MyServer> userDictionary = new Dictionary<string, MyServer>();
-    private static SQLiteConnection dbConnection;
+    private static readonly List<MyServer> Clients = new List<MyServer>();
+    private static readonly Dictionary<string, MyServer> UserDictionary = new Dictionary<string, MyServer>();
+    private static readonly SQLiteConnection DbConnection;
 
     static MyServer()
     {
         // Инициализация подключения к базе данных SQLite
-        dbConnection = new SQLiteConnection("Data Source=P2PDatabase.db;Version=3;");
-        dbConnection.Open();
+        DbConnection = new SQLiteConnection("Data Source=P2PDatabase.db;Version=3;");
+        DbConnection.Open();
 
         // Создание таблицы для пользователей, если её нет
-        using (var cmd = new SQLiteCommand("CREATE TABLE IF NOT EXISTS Users (Id INTEGER PRIMARY KEY AUTOINCREMENT, UserName TEXT UNIQUE);", dbConnection))
+        using (var cmd = new SQLiteCommand("CREATE TABLE IF NOT EXISTS Users (Id INTEGER PRIMARY KEY AUTOINCREMENT, UserName TEXT UNIQUE);", DbConnection))
         {
             cmd.ExecuteNonQuery();
         }
 
         // Создание таблицы для сообщений, если её нет
-        using (var cmd = new SQLiteCommand("CREATE TABLE IF NOT EXISTS Messages (Id INTEGER PRIMARY KEY AUTOINCREMENT, Sender TEXT, Recipient TEXT, Content TEXT, Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP);", dbConnection))
+        using (var cmd = new SQLiteCommand("CREATE TABLE IF NOT EXISTS Messages (Id INTEGER PRIMARY KEY AUTOINCREMENT, Sender TEXT, Recipient TEXT, Content TEXT, Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP);", DbConnection))
         {
             cmd.ExecuteNonQuery();
         }
     }
-
     protected override void OnOpen()
     {
         base.OnOpen();
-        clients.Add(this);
-
+        Clients.Add(this);
         Console.WriteLine("Добро пожаловать в чат!");
     }
-
+    
     protected override void OnMessage(MessageEventArgs e)
     {
         var message = e.Data;
-
         if (message.StartsWith("REGISTER:"))
         {
-            var userName = message.Substring("REGISTER:".Length);
-            userDictionary[userName] = this;
+            // Регистрация пользователя
+            var userName = message["REGISTER:".Length..];
+            UserDictionary[userName] = this;
             UpdateUserList();
         }
         else if (message.StartsWith("PRIVATE:"))
         {
-            var parts = message.Substring("PRIVATE:".Length).Split(':');
+            // Обработка приватного сообщения
+            var parts = message["PRIVATE:".Length..].Split(':');
             var sender = parts[0];
             var recipient = parts[1];
             var content = parts[2];
-
-            if (userDictionary.TryGetValue(recipient, out var recipientClient))
-            {
-                recipientClient.Send($"{sender} (приватно): {content}");
-            }
-
+            // Отправка приватного сообщения получателю
+            if (UserDictionary.TryGetValue(recipient, out var recipientClient)) recipientClient.Send($"{sender} (приватно): {content}");
             // Сохранение сообщения в базу данных
             SaveMessage(sender, recipient, content);
         }
         else if (message.StartsWith("FILE:"))
         {
-            var parts = message.Substring("FILE:".Length).Split(':');
+            // Обработка файла
+            var parts = message["FILE:".Length..].Split(':');
             var sender = parts[0];
             var recipient = parts[1];
             var fileName = parts[2];
             var fileContent = parts[3];
-
-            if (userDictionary.TryGetValue(recipient, out var recipientClient))
-            {
-                // Отправляем файл получателю
-                recipientClient.Send($"FILE:{sender}:{recipient}:{fileName}:{fileContent}");
-            }
+            // Отправка файла получателю
+            if (UserDictionary.TryGetValue(recipient, out var recipientClient)) recipientClient.Send($"FILE:{sender}:{recipient}:{fileName}:{fileContent}");
         }
     }
-
-    private void SaveMessage(string sender, string recipient, string content)
+    private static void SaveMessage(string sender, string recipient, string content)
     {
-        using (var cmd = new SQLiteCommand("INSERT INTO Messages (Sender, Recipient, Content, Timestamp) VALUES (@Sender, @Recipient, @Content, CONVERT_TZ(@Timestamp, '+00:00', '+03:00'));", dbConnection))
-        {
-            cmd.Parameters.AddWithValue("@Sender", sender);
-            cmd.Parameters.AddWithValue("@Recipient", recipient);
-            cmd.Parameters.AddWithValue("@Content", content);
-            cmd.Parameters.AddWithValue("@Timestamp", DateTime.UtcNow);
+        using var cmd = new SQLiteCommand("INSERT INTO Messages (Sender, Recipient, Content) VALUES (@Sender, @Recipient, @Content);", DbConnection);
+        cmd.Parameters.AddWithValue("@Sender", sender);
+        cmd.Parameters.AddWithValue("@Recipient", recipient);
+        cmd.Parameters.AddWithValue("@Content", content);
 
-            cmd.ExecuteNonQuery();
-        }
+        cmd.ExecuteNonQuery();
     }
-
-    private void UpdateUserList()
+    private static void UpdateUserList()
     {
-        var userList = string.Join(";", userDictionary.Keys);
-        foreach (var client in clients)
+        // Обновление списка пользователей для всех клиентов
+        var userList = string.Join(";", UserDictionary.Keys);
+        foreach (var client in Clients)
         {
             client.Send("USERLIST:" + userList);
         }
@@ -104,15 +91,14 @@ class MyServer : WebSocketBehavior
     protected override void OnClose(CloseEventArgs e)
     {
         base.OnClose(e);
-        clients.Remove(this);
-
-        var userName = userDictionary.FirstOrDefault(x => x.Value == this).Key;
+        Clients.Remove(this);
+        // Обработка закрытия соединения (выход пользователя)
+        var userName = UserDictionary.FirstOrDefault(x => x.Value == this).Key;
         if (userName != null)
         {
-            userDictionary.Remove(userName);
+            UserDictionary.Remove(userName);
             UpdateUserList();
         }
-
         Console.WriteLine($"Пользователь {ID} вышел из чата");
     }
 }
@@ -120,6 +106,7 @@ internal abstract class MasterServer
 {
     private static void Main()
     {
+        // Запуск сервера WebSocket
         var wssv = new WebSocketServer("wss://127.0.0.1:7777")
         {
             SslConfiguration = new ServerSslConfiguration(
@@ -129,7 +116,9 @@ internal abstract class MasterServer
                 false
             )
         };
+        // Добавление службы WebSocket для обработки сообщений
         wssv.AddWebSocketService<MyServer>("/myServer");
+        // Запуск сервера
         wssv.Start();
         Console.WriteLine("WebSocket Server Started");
         Console.ReadKey();

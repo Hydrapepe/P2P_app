@@ -14,4 +14,8 @@
     <PackageReference Include="WebSocketSharp" Version="1.0.3-rc11" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="WebSocketSharp" />
+  </ItemGroup>
+
 </Project>
