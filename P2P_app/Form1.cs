@@ -1,3 +1,5 @@
+using System.Net;
+
 namespace P2P_app;
 public partial class ChatForm : Form
 {
@@ -72,7 +74,8 @@ public partial class ChatForm : Form
 
     private async void ConnectToP2PServer()
     {
-        _p2PClient = new P2PClient("ws://127.0.0.1:7777/myServer");
+        ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+        _p2PClient = new P2PClient("wss://127.0.0.1:7777/myServer");
         await _p2PClient.ConnectAsync();
         await _p2PClient.RegisterAsync(nickname);
     }

@@ -1,4 +1,7 @@
-﻿using WebSocketSharp;
+﻿using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
+using WebSocketSharp;
+using WebSocketSharp.Net;
 using WebSocketSharp.Server;
 
 class MyServer : WebSocketBehavior
@@ -80,7 +83,13 @@ abstract class MasterServer
 {
     private static void Main()
     {
-        var wssv = new WebSocketServer("ws://127.0.0.1:7777");
+        var wssv = new WebSocketServer("wss://127.0.0.1:7777");
+        wssv.SslConfiguration = new ServerSslConfiguration(
+            new X509Certificate2("certificate.pfx", "123"),
+            true,
+            SslProtocols.Tls12,
+            false
+        );
         wssv.AddWebSocketService<MyServer>("/myServer");
         wssv.Start();
         Console.WriteLine("WebSocket Server Started");
