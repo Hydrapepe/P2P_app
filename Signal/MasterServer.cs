@@ -79,17 +79,19 @@ protected override void OnMessage(MessageEventArgs e)
     }
 }
 
-abstract class MasterServer
+internal abstract class MasterServer
 {
     private static void Main()
     {
-        var wssv = new WebSocketServer("wss://127.0.0.1:7777");
-        wssv.SslConfiguration = new ServerSslConfiguration(
-            new X509Certificate2("certificate.pfx", "123"),
-            true,
-            SslProtocols.Tls12,
-            false
-        );
+        var wssv = new WebSocketServer("wss://127.0.0.1:7777")
+        {
+            SslConfiguration = new ServerSslConfiguration(
+                new X509Certificate2("certificate.pfx", "123"),
+                true,
+                SslProtocols.Tls12,
+                false
+            )
+        };
         wssv.AddWebSocketService<MyServer>("/myServer");
         wssv.Start();
         Console.WriteLine("WebSocket Server Started");

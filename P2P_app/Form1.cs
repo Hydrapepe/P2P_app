@@ -1,4 +1,9 @@
 using System.Net;
+using System.Net.WebSockets;
+using WebSocketSharp;
+using System.Security.Authentication;
+using WebSocket = WebSocketSharp.WebSocket;
+using WebSocketSharp.Net;
 
 namespace P2P_app;
 public partial class ChatForm : Form
@@ -26,65 +31,51 @@ public partial class ChatForm : Form
         var files = (string[])e.Data.GetData(DataFormats.FileDrop);
         foreach (var file in files) this.fileModuleTextBox.Text += file + Environment.NewLine;
     }
-    protected override void OnFormClosing(FormClosingEventArgs e)
+    protected override async void OnFormClosing(FormClosingEventArgs e)
     {
+        await _p2PClient.CloseAsync();
         base.OnFormClosing(e);
         Application.Exit();
     }
     private void SendFileButton_Click(object sender, EventArgs e)
     {
-        string selectedUser = usersListBox.SelectedItem as string;
+        var selectedUser = usersListBox.SelectedItem as string;
         if (!string.IsNullOrEmpty(selectedUser) && selectedUser != nickname)
         {
-            string fileName = Path.GetFileName(fileModuleTextBox.Text);
+            var fileName = Path.GetFileName(fileModuleTextBox.Text);
             if (!string.IsNullOrEmpty(fileName) && File.Exists(fileModuleTextBox.Text))
             {
                 // Чтение содержимого файла
-                string fileContent = Convert.ToBase64String(File.ReadAllBytes(fileModuleTextBox.Text));
+                var fileContent = Convert.ToBase64String(File.ReadAllBytes(fileModuleTextBox.Text));
 
                 // Отправка файла
-                string message = $"FILE:{nickname}:{selectedUser}:{fileName}:{fileContent}";
+                var message = $"FILE:{nickname}:{selectedUser}:{fileName}:{fileContent}";
                 SendMessageToP2P(message);
-
                 // Отобразить информацию о файле в чате
                 chatTextBox.AppendText($"Вы отправили файл '{fileName}' пользователю {selectedUser}\n");
             }
-            else
-            {
-                MessageBox.Show(@"Выберите файл для отправки.");
-            }
+            else MessageBox.Show(@"Выберите файл для отправки.");
         }
-        else if (selectedUser == nickname)
-        {
-            MessageBox.Show(@"Нельзя отправить файл самому себе.");
-        }
-        else
-        {
-            MessageBox.Show(@"Выберите пользователя для отправки файла.");
-        }
+        else if (selectedUser == nickname) MessageBox.Show(@"Нельзя отправить файл самому себе.");
+        else MessageBox.Show(@"Выберите пользователя для отправки файла.");
     }
     private void FileModuleTextBox_Click(object sender, EventArgs e)
     {
         var openFileDialog = new OpenFileDialog();
-        if (openFileDialog.ShowDialog() == DialogResult.OK)
-        {
-            this.fileModuleTextBox.Text = openFileDialog.FileName;
-        }
+        if (openFileDialog.ShowDialog() == DialogResult.OK) fileModuleTextBox.Text = openFileDialog.FileName;
     }
 
     private async void ConnectToP2PServer()
-    {
-        ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+    { 
         _p2PClient = new P2PClient("wss://127.0.0.1:7777/myServer");
+        _p2PClient.SetTlsVersion(SslProtocols.Tls12, "certificate.pfx", "123");
         await _p2PClient.ConnectAsync();
         await _p2PClient.RegisterAsync(nickname);
     }
-
     private async Task SendMessageToP2P(string message)
     {
         await _p2PClient.SendMessageAsync(message);
     }
-
     private async void ReceiveMessagesFromP2P()
     {
         Thread.Sleep(1111);
@@ -159,21 +150,13 @@ public partial class ChatForm : Form
     }
     private void UpdateUserList(string userList)
     {
-        // Используйте символ ';' в качестве разделителя
         var users = userList.Split(';');
-        // Очистите listBox
         usersListBox.Items.Clear();
-        // Добавьте каждого пользователя в listBox
         foreach (var user in users)
         {
             usersListBox.Items.Add(user);
         }
     }
-    private async void DisconnectFromP2PServer()
-    {
-        await _p2PClient.CloseAsync();
-    }
-
     private void UsersListBox_SelectedIndexChanged(object sender, EventArgs e)
     {
         var selectedUser = usersListBox.SelectedItem.ToString();
@@ -186,14 +169,12 @@ public partial class ChatForm : Form
         var textBox = (TextBox)sender;
         if (textBox.Text == @"Введите сообщение...") textBox.Text = "";
     }
-
     // Обработчик события при выходе из additionalTextBox
     private void AdditionalTextBox_Leave(object sender, EventArgs e)
     {
         var textBox = (TextBox)sender;
         if (string.IsNullOrWhiteSpace(textBox.Text)) textBox.Text = @"Введите сообщение...";
     }
-
     private void AdditionalButton_Click(object sender, EventArgs e)
     {
         var selectedUser = usersListBox.SelectedItem as string;

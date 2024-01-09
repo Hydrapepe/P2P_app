@@ -1,57 +1,85 @@
-﻿using System.Net.WebSockets;
+﻿using System;
+using System.Net.Security;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
+using System.Net.WebSockets;
 using System.Text;
-namespace P2P_app;
-public class P2PClient
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace P2P_app
 {
-    private readonly ClientWebSocket socket;
-    private readonly string serverAddress;
-
-    public P2PClient(string serverAddress)
+    public class P2PClient
     {
-        this.serverAddress = serverAddress;
-        this.socket = new ClientWebSocket();
-    }
+        private readonly ClientWebSocket socket;
+        private readonly string serverAddress;
 
-    public async Task ConnectAsync()
-    {
-        await socket.ConnectAsync(new Uri(serverAddress), CancellationToken.None);
-        // Реализуйте логику отправки регистрационных данных на сервер
-    }
-
-    public async Task SendMessageAsync(string message)
-    {
-        var buffer = Encoding.UTF8.GetBytes(message);
-        await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
-    }
-
-    public async Task<string> ReceiveMessageAsync()
-    {
-        var buffer = new byte[1024];
-        var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-        if (result.MessageType == WebSocketMessageType.Text)
+        public P2PClient(string serverAddress)
         {
-            return Encoding.UTF8.GetString(buffer, 0, result.Count);
+            this.serverAddress = serverAddress;
+            this.socket = new ClientWebSocket();
         }
-        else if (result.MessageType == WebSocketMessageType.Close)
-        {
-            // Если получено закрытие соединения, вернуть null или пустую строку, в зависимости от вашей логики
-            return null;
-        }
-        else
-        {
-            // Обработка других типов сообщений, если необходимо
-            return null;
-        }
-    }
 
-    public async Task CloseAsync()
-    {
-        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed by client", CancellationToken.None);
-    }
-    public async Task RegisterAsync(string nickname)
-    {
-        var registerMessage = $"REGISTER:{nickname}";
-        await SendMessageAsync(registerMessage);
+        public async Task ConnectAsync()
+        {
+            await socket.ConnectAsync(new Uri(serverAddress), CancellationToken.None);
+            // Implement the logic for sending registration data to the server if needed
+        }
+
+        public async Task SendMessageAsync(string message)
+        {
+            var buffer = Encoding.UTF8.GetBytes(message);
+            await socket.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
+        }
+
+        public async Task<string> ReceiveMessageAsync()
+        {
+            var buffer = new byte[1024];
+            var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+
+            return result.MessageType switch
+            {
+                WebSocketMessageType.Text => Encoding.UTF8.GetString(buffer, 0, result.Count),
+                WebSocketMessageType.Close => null,
+                _ => null
+            };
+        }
+
+        public async Task CloseAsync()
+        {
+            await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed by client", CancellationToken.None);
+        }
+
+        public void SetTlsVersion(SslProtocols protocols, string certificatePath, string certificatePassword)
+        {
+
+                var sslOptions = new SslClientAuthenticationOptions
+                {
+                    EnabledSslProtocols = protocols,
+                };
+
+                socket.Options.AddSubProtocol("wss");
+                socket.Options.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
+
+                // Load the certificate from file
+                var certificate = new X509Certificate2(certificatePath, certificatePassword);
+
+                // Add the certificate to the options
+                socket.Options.ClientCertificates = new X509CertificateCollection { certificate };
+
+                if (socket.Options.ClientCertificates.Count > 0)
+                {
+                    sslOptions.ClientCertificates = socket.Options.ClientCertificates;
+                }
+
+                socket.Options.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
+        }
+
+
+        public async Task RegisterAsync(string nickname)
+        {
+            var registerMessage = $"REGISTER:{nickname}";
+            await SendMessageAsync(registerMessage);
+        }
     }
 }
