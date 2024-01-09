@@ -1,11 +1,8 @@
-﻿using System;
-using System.Net.Security;
+﻿using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Net.WebSockets;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace P2P_app
 {
@@ -52,30 +49,16 @@ namespace P2P_app
 
         public void SetTlsVersion(SslProtocols protocols, string certificatePath, string certificatePassword)
         {
-
-                var sslOptions = new SslClientAuthenticationOptions
-                {
-                    EnabledSslProtocols = protocols,
-                };
-
-                socket.Options.AddSubProtocol("wss");
-                socket.Options.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
-
-                // Load the certificate from file
-                var certificate = new X509Certificate2(certificatePath, certificatePassword);
-
-                // Add the certificate to the options
-                socket.Options.ClientCertificates = new X509CertificateCollection { certificate };
-
-                if (socket.Options.ClientCertificates.Count > 0)
-                {
-                    sslOptions.ClientCertificates = socket.Options.ClientCertificates;
-                }
-
-                socket.Options.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
+            var sslOptions = new SslClientAuthenticationOptions { EnabledSslProtocols = protocols, };
+            socket.Options.AddSubProtocol("wss");
+            socket.Options.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
+            // Load the certificate from file
+            var certificate = new X509Certificate2(certificatePath, certificatePassword);
+            // Add the certificate to the options
+            socket.Options.ClientCertificates = new X509CertificateCollection { certificate };
+            if (socket.Options.ClientCertificates.Count > 0) sslOptions.ClientCertificates = socket.Options.ClientCertificates;
+            socket.Options.RemoteCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
         }
-
-
         public async Task RegisterAsync(string nickname)
         {
             var registerMessage = $"REGISTER:{nickname}";
