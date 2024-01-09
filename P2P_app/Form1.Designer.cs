@@ -1,18 +1,20 @@
 ﻿namespace P2P_app;
-partial class ChatForm 
-{ 
-    private ListBox usersListBox;
-    private TextBox chatTextBox;
-    private RichTextBox fileModuleTextBox;
-    private Button sendFileButton;
-    private string nickname;
-    private Label usersLabel;
-    private Label chatLabel;
-    private Label fileLabel;
-    private TextBox additionalTextBox;
-    private Button additionalButton;
+partial class ChatForm
+{
+    // Компоненты интерфейса пользователя
+    private ListBox usersListBox;          // Список пользователей
+    private TextBox chatTextBox;           // Текстовое поле для чата
+    private RichTextBox fileModuleTextBox; // Текстовое поле для сообщений о файлах
+    private Button sendFileButton;         // Кнопка для отправки файлов
+    private string nickname;               // Псевдоним пользователя
+    private Label usersLabel;              // Метка для списка пользователей
+    private Label chatLabel;               // Метка для чата
+    private Label fileLabel;               // Метка для модуля файлов
+    private TextBox additionalTextBox;     // Дополнительное текстовое поле для ввода сообщений
+    private Button additionalButton;       // Кнопка для отправки дополнительных сообщений
 
-        private System.ComponentModel.IContainer components = null;
+
+    // Инициализация компонентов интерфейса пользователя
     private void InitializeComponent()
     {
         this.usersListBox = new ListBox();
@@ -66,7 +68,7 @@ partial class ChatForm
 
 
         this.additionalButton.Location = new System.Drawing.Point(430, 425); // Расположение под additionalTextBox
-        this.additionalButton.Size = new System.Drawing.Size(200,23);
+        this.additionalButton.Size = new System.Drawing.Size(200, 23);
         this.additionalButton.Text = "Отправить сообщение";
         this.additionalButton.Click += new EventHandler(this.AdditionalButton_Click);
 
@@ -86,10 +88,13 @@ partial class ChatForm
         this.Text = $"Здравствуйте, {nickname}";
     }
 }
+// Утилитарный класс для диалогового окна
 public static class Prompt
 {
+    // Метод для отображения диалогового окна с текстовым вводом
     public static string ShowDialog(string text, string caption)
     {
+        // Создание новой формы для диалогового окна
         Form prompt = new Form()
         {
             Width = 500,
@@ -98,14 +103,22 @@ public static class Prompt
             Text = caption,
             StartPosition = FormStartPosition.CenterScreen
         };
+
+        // Создание компонентов интерфейса для диалоговой формы
         Label textLabel = new Label() { Left = 50, Top = 20, Text = text, Size = new System.Drawing.Size(150, 20) };
         TextBox textBox = new TextBox() { Left = 50, Top = 50, Width = 400 };
         Button confirmation = new Button() { Text = "Ok", Left = 350, Width = 100, Top = 70, DialogResult = DialogResult.OK };
+
+        // Добавление обработчика события для кнопки подтверждения
         confirmation.Click += (sender, e) => { prompt.Close(); };
+
+        // Добавление компонентов на диалоговую форму
         prompt.Controls.Add(textBox);
         prompt.Controls.Add(confirmation);
         prompt.Controls.Add(textLabel);
         prompt.AcceptButton = confirmation;
+
+        // Отображение диалогового окна и возврат введенного текста при нажатии "Ok"
         return prompt.ShowDialog() == DialogResult.OK ? textBox.Text : "";
     }
 }

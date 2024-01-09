@@ -12,6 +12,6 @@ internal static class Program
         // Запуск приложения чата с указанным никнеймом, если ввод не пустой
         if (!string.IsNullOrEmpty(nickname)) Application.Run(new ChatForm(nickname));
         // Добавление обработчика события при выходе из приложения для корректного завершения потока приложения
-        Application.ApplicationExit += (sender, e) => { Application.ExitThread(); };
+        Application.ApplicationExit += (_,_) => { Application.ExitThread(); };
     }
 }

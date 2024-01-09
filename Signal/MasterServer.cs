@@ -6,8 +6,8 @@ using WebSocketSharp.Server;
 namespace Signal;
 internal class MyServer : WebSocketBehavior
 {
-    private static readonly List<MyServer> Clients = new List<MyServer>();
-    private static readonly Dictionary<string, MyServer> UserDictionary = new Dictionary<string, MyServer>();
+    private static readonly List<MyServer> Clients = new();
+    private static readonly Dictionary<string, MyServer> UserDictionary = new();
     private static readonly SQLiteConnection DbConnection;
 
     static MyServer()
